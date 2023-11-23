@@ -4,7 +4,7 @@ import pandas as pd
 import numpy.polynomial.polynomial as poly
 import math
 import util
-import heapq
+import sys
 
 from scipy.signal import savgol_filter
 
@@ -14,9 +14,13 @@ from scipy.signal import savgol_filter
 # INPUT_LABEL = "./ss5_id_412.csv"
 # OUTPUT_VIDEO = "./parabola.mp4"
 
-INPUT_VIDEO = "D:\\ori_img"
-INPUT_LABEL = "./real_speed.csv" #"./8290/8290.csv"
-OUTPUT_VIDEO = "./test.mp4"
+if len(sys.argv) != 4:
+    print("Usage: python *.py <input_video> <input_label> <output_video>")
+    exit(0)
+
+INPUT_VIDEO = sys.argv[1] # "D:\\ori_img"
+INPUT_LABEL = sys.argv[2] # "./real_speed.csv" #"./8290/8290.csv"
+OUTPUT_VIDEO = sys.argv[3] # "./test.mp4"
 
 imgSrc = util.FrameReader(INPUT_VIDEO)
 df = pd.read_csv(INPUT_LABEL, encoding='gbk')
