@@ -4,8 +4,10 @@ import pandas as pd
 import numpy.polynomial.polynomial as poly
 import math
 import util
+import heapq
 
 from scipy.signal import savgol_filter
+
 
 # Read Source Data
 # INPUT_VIDEO = "./ss5_id_412.mp4"
@@ -13,26 +15,36 @@ from scipy.signal import savgol_filter
 # OUTPUT_VIDEO = "./parabola.mp4"
 
 INPUT_VIDEO = "D:\\ori_img"
-INPUT_LABEL = "./8290/8290.csv"
+INPUT_LABEL = "./real_speed.csv" #"./8290/8290.csv"
 OUTPUT_VIDEO = "./test.mp4"
 
 imgSrc = util.FrameReader(INPUT_VIDEO)
-df = pd.read_csv(INPUT_LABEL, encoding='gbk', index_col=None)
+df = pd.read_csv(INPUT_LABEL, encoding='gbk')
 
 fourcc = cv2.VideoWriter_fourcc(*'avc1')
-out = cv2.VideoWriter(OUTPUT_VIDEO, fourcc, 24, (1280, 720))
+video_rect = (1280, 720)
+out = cv2.VideoWriter(OUTPUT_VIDEO, fourcc, 24, video_rect)
 
-x = df['x坐标']
-y = df['y坐标']
-hit = df['击球']
-x = savgol_filter(x, 7, 3)
-y = savgol_filter(y, 7, 3)
+# 数据按照第一次给的格式进行填充
+x = df['x'].fillna(-1)
+y = df['y'].fillna(-1)
+hit = df['processed_hit'] == "hit"
+proj_x = df['projected_x'].fillna(5)
+proj_y = df['projected_y'].fillna(5)
+bounce = df['processed_bounce'] == "bounce"
+
+# x = savgol_filter(x, 7, 3)
+# y = savgol_filter(y, 7, 3)
 
 farend_color = np.array([255,178,0])
 nearend_color = np.array([0,184,255])
 eps = 0.0001
 interval = 5
 ball_width = 2
+
+court = cv2.imread("./court.jpg")
+court_rect = (court.shape[1], court.shape[0])
+landing_buffer, permanent_buffer = [], []
 
 history = []
 last_color = None
@@ -87,6 +99,18 @@ def fill_hull_block(hull_points, history, img, color):
                 img[*p] = (img[*p].astype(float) * (1-t) + color.astype(float) * t).astype(np.uint8)
     return
 
+def draw_landing_point(img, ox, oy, bx, by, is_bounce=False, color=(0, 255, 0)):
+    court_frame = court.copy()
+    if is_bounce:
+        fx, fy = int(ox / 1665 * court_rect[0]), int(oy / 2506 * court_rect[1])
+        permanent_buffer.append(util.LandingPointAnimation(frameNum, 9999999, fx, fy, color, [0, 24, 36, 9999999], [8,6,4,4], 0))
+        permanent_buffer.append(util.LandingPointAnimation(frameNum, 24, int(bx), int(by), (50, 50, 50), [0, 12, 24], [5,10,5], 1))
+
+    for o in permanent_buffer:
+        o.animate(frameNum, court_frame, img)
+
+    img[0:court_rect[1], img.shape[1]-court_rect[0]:img.shape[1]] = court_frame
+
 
 for frameNum, img in enumerate(imgSrc):
     if frameNum < interval:
@@ -96,8 +120,6 @@ for frameNum, img in enumerate(imgSrc):
     smallDistance = 0.2
 
     # 当前时刻前后球的坐标，通过2阶多项式拟合
-    if frameNum == 269:
-        print("debug")
     x_values = x[frameNum - interval:frameNum + interval]
     if np.any(np.isclose(x_values, -1)):
         history = []
@@ -138,7 +160,7 @@ for frameNum, img in enumerate(imgSrc):
                     idx = util.determine_overall_direction(dire_vec) + 1
                     last_color = [farend_color, nearend_color, nearend_color][idx]
                 else:
-                    if hit[frameNum] == 1:
+                    if hit[frameNum]:
                         if y[frameNum] <= img.shape[0] / 2:
                             last_color = farend_color
                         else:
@@ -148,11 +170,10 @@ for frameNum, img in enumerate(imgSrc):
             except:
                 print("error in frame {}".format(frameNum))
 
-
         # Pop the oldest frame off the history if the history is longer than 0.25 seconds
         if len(history) > interval:
             history.pop(0)
-
+    draw_landing_point(img, proj_x[frameNum], proj_y[frameNum], x[frameNum], y[frameNum], bounce[frameNum])
     out.write(img)
 
     # Show Image

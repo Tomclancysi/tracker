@@ -3,6 +3,7 @@ import math
 import numpy as np
 import Polygon as poly
 import os
+import numpy as np
 
 def orientation(p, q, r):
     val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
@@ -85,3 +86,40 @@ class FrameReader:
                 cap.release()
                 raise StopIteration
             yield frame
+
+
+class Animation:
+    def __init__(self, start_frame, duration) -> None:
+        self.start_frame = start_frame
+        self.duration = duration
+
+    def animate(self, frame, canvases):
+        pass
+    
+    def expired(self, frameNum):
+        return frameNum > self.start_frame + self.duration
+
+
+class LandingShadowAnimation(Animation):
+    def __init__(self, start_frame, duration) -> None:
+        super().__init__(start_frame, duration)
+    
+    def animate(self, frame, canvases):
+        
+        pass
+
+
+class LandingPointAnimation(Animation):
+    def __init__(self, start_frame, duration, x, y, color, frame_offset, radius, type) -> None:
+        super().__init__(start_frame, duration)
+        self.x, self.y, self.color, self.frame_offset, self.radius, self.type = x, y, color, frame_offset, radius, type
+    
+    def animate(self, frameNum, court, video):
+        if frameNum < self.start_frame or frameNum > self.start_frame + self.duration:
+            return
+        curRadius = np.interp(frameNum - self.start_frame, self.frame_offset, self.radius)
+        if self.type == 0:
+            cv2.circle(court, (self.x, self.y), int(curRadius), self.color, -1)
+        else:
+            axes = (int(curRadius), int(curRadius*0.5))  # 长轴和短轴的长度
+            cv2.ellipse(video, (self.x, self.y), axes, 0, 0, 360, self.color, -1)
