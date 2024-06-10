@@ -1,7 +1,7 @@
 import cv2
 import math
 import numpy as np
-import Polygon as poly
+from shapely.geometry import Point, Polygon
 import os
 import numpy as np
 
@@ -33,8 +33,9 @@ def graham_scan(points: list):
     return hull
 
 def point_in_polygon(point, polygon):
-    p = poly.Polygon(polygon)
-    return p.isInside(*point)
+    p = Polygon(polygon)
+    pt = Point(point)
+    return p.contains(pt)
 
 def determine_overall_direction(vectors: np.array):
     """1表示从下往上，-1表示从上往下"""
@@ -73,7 +74,7 @@ class FrameReader:
         while True:
             frame_path = os.path.join(self.path, f"{frame_number}.jpg")
             if not os.path.exists(frame_path):
-                raise StopIteration
+                return
             frame = cv2.imread(frame_path)
             yield frame
             frame_number += 1
@@ -84,7 +85,7 @@ class FrameReader:
             ret, frame = cap.read()
             if not ret:
                 cap.release()
-                raise StopIteration
+                return
             yield frame
 
 
@@ -95,7 +96,7 @@ class Animation:
 
     def animate(self, frame, canvases):
         pass
-    
+
     def expired(self, frameNum):
         return frameNum > self.start_frame + self.duration
 
@@ -103,9 +104,9 @@ class Animation:
 class LandingShadowAnimation(Animation):
     def __init__(self, start_frame, duration) -> None:
         super().__init__(start_frame, duration)
-    
+
     def animate(self, frame, canvases):
-        
+
         pass
 
 
@@ -113,7 +114,7 @@ class LandingPointAnimation(Animation):
     def __init__(self, start_frame, duration, x, y, color, frame_offset, radius, type) -> None:
         super().__init__(start_frame, duration)
         self.x, self.y, self.color, self.frame_offset, self.radius, self.type = x, y, color, frame_offset, radius, type
-    
+
     def animate(self, frameNum, court, video):
         if frameNum < self.start_frame or frameNum > self.start_frame + self.duration:
             return

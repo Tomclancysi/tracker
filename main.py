@@ -23,7 +23,22 @@ INPUT_LABEL = sys.argv[2] # "./real_speed.csv" #"./8290/8290.csv"
 OUTPUT_VIDEO = sys.argv[3] # "./test.mp4"
 
 imgSrc = util.FrameReader(INPUT_VIDEO)
-df = pd.read_csv(INPUT_LABEL, encoding='gbk')
+
+str2float = lambda x: float(x) if x != "None" and x != "" else -1.0
+df = pd.read_csv(INPUT_LABEL,
+                 dtype={
+                    "x": str,
+                    "y": str,
+                    "projected_x": str,
+                    "projected_y": str,
+                 },
+                 converters={
+                    "x": str2float,
+                    "y": str2float,
+                    "projected_x": str2float,
+                    "projected_y": str2float,
+
+                })
 
 fourcc = cv2.VideoWriter_fourcc(*'avc1')
 video_rect = (1280, 720)
@@ -99,8 +114,7 @@ def fill_hull_block(hull_points, history, img, color):
                     if t < dist:
                         k, dist = idx, t
                 t = alpha * (k+1)
-                p = p[::-1]
-                img[*p] = (img[*p].astype(float) * (1-t) + color.astype(float) * t).astype(np.uint8)
+                img[p[1], p[0]] = (img[p[1], p[0]].astype(float) * (1-t) + color.astype(float) * t).astype(np.uint8)
     return
 
 def draw_landing_point(img, ox, oy, bx, by, is_bounce=False, color=(0, 255, 0)):
@@ -155,7 +169,7 @@ for frameNum, img in enumerate(imgSrc):
             l, r = perpendicular(slopei, history[i+1], width)
             hull_points.append(l)
             hull_points.append(r)
-        
+
         if len(hull_points) >= 3:
             try:
                 hull_points = util.graham_scan(hull_points)
